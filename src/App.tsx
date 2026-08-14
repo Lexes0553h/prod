@@ -2,11 +2,15 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
-import { ArrowRight, Code, ExternalLink, Globe, Layout, Menu, Smartphone, Sparkles, Star, X } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent } from 'motion/react';
+import { ArrowRight, Code, ExternalLink, Globe, Layout, Menu, Smartphone, Sparkles, Star, X, Mail, Phone } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import AsciiFlowTrail from './components/AsciiFlowTrail';
-import FluidImage from './components/FluidImage';
+import RadialButton from './components/RadialButton';
+import { LiquidButton } from './components/ui/liquid-glass-button';
+import { TextRotator } from './components/ui/text-rotator';
+
+import StarflowButton from './components/StarflowButton';
 
 const VIDEO_SRC =
   "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260530_042513_df96a13b-6155-4f6e-8b93-c9dee66fba08.mp4";
@@ -23,18 +27,41 @@ function useMouseScrubVideo(videoRef: React.RefObject<HTMLVideoElement>) {
     if (!video) return;
 
     let prevX: number | null = null;
-    let targetTime = 0;
+    let targetTime = video.currentTime;
+    let currentRenderTime = video.currentTime;
     let seeking = false;
+    let animationFrameId: number;
+    let isVisible = false;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]) {
+          isVisible = entries[0].isIntersecting;
+          if (isVisible) {
+            prevX = null;
+            targetTime = video.currentTime;
+            currentRenderTime = video.currentTime;
+            loop();
+          } else {
+            cancelAnimationFrame(animationFrameId);
+          }
+        }
+      },
+      { threshold: 0 }
+    );
+    observer.observe(video);
 
     const clamp = (value: number, min: number, max: number) =>
       Math.min(Math.max(value, min), max);
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (!isVisible) return;
       if (!video.duration || Number.isNaN(video.duration)) return;
 
       if (prevX === null) {
         prevX = e.clientX;
         targetTime = video.currentTime;
+        currentRenderTime = video.currentTime;
         return;
       }
 
@@ -43,27 +70,36 @@ function useMouseScrubVideo(videoRef: React.RefObject<HTMLVideoElement>) {
 
       const timeOffset = (delta / window.innerWidth) * SENSITIVITY * video.duration;
       targetTime = clamp(targetTime + timeOffset, 0, video.duration);
+    };
 
-      if (!seeking) {
-        seeking = true;
-        video.currentTime = targetTime;
+    const loop = () => {
+      if (!isVisible) return;
+      
+      if (video.duration && !Number.isNaN(video.duration)) {
+        // Smoothly interpolate towards the target time
+        currentRenderTime += (targetTime - currentRenderTime) * 0.08;
+        
+        // Only set currentTime if not currently seeking and difference is significant
+        if (!seeking && Math.abs(video.currentTime - currentRenderTime) > 0.02) {
+          seeking = true;
+          video.currentTime = currentRenderTime;
+        }
       }
+      animationFrameId = requestAnimationFrame(loop);
     };
 
     const handleSeeked = () => {
-      if (Math.abs(video.currentTime - targetTime) > 0.01) {
-        video.currentTime = targetTime;
-      } else {
-        seeking = false;
-      }
+      seeking = false;
     };
 
     window.addEventListener("mousemove", handleMouseMove);
     video.addEventListener("seeked", handleSeeked);
 
     return () => {
+      observer.disconnect();
       window.removeEventListener("mousemove", handleMouseMove);
       video.removeEventListener("seeked", handleSeeked);
+      cancelAnimationFrame(animationFrameId);
     };
   }, [videoRef]);
 }
@@ -208,6 +244,7 @@ const TESTIMONIALS = [
   }
 ];
 
+// @ts-ignore
 const LUMORA_VIDEOS = [
   {
     src: "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_081127_0992a171-d3c6-4978-8213-0ec5df8b6d63.mp4",
@@ -228,9 +265,25 @@ const LUMORA_VIDEOS = [
 ];
 
 function LumoraHero() {
-  const [activeVideo, setActiveVideo] = useState(2);
+  const [activeVideo, setActiveVideo] = useState(1);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { scrollY } = useScroll();
+  const [hidden, setHidden] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useMotionValueEvent(scrollY, "change", (latest) => {
+    const previous = scrollY.getPrevious() ?? 0;
+    if (latest > 50) {
+      setScrolled(true);
+    } else {
+      setScrolled(false);
+    }
+    if (latest > previous && latest > 150) {
+      setHidden(true);
+    } else {
+      setHidden(false);
+    }
+  });
 
   const handleVideoSwitch = (index: number) => {
     if (index === activeVideo || isTransitioning) return;
@@ -244,7 +297,7 @@ function LumoraHero() {
   const bgColor = isDark ? 'bg-[#182C41]' : 'bg-white';
 
   return (
-    <section className="relative w-full h-screen overflow-hidden bg-black font-sans">
+    <section className="relative w-full min-h-[100dvh] overflow-hidden flex flex-col bg-black font-sans">
       {/* Video layer */}
       {LUMORA_VIDEOS.map((video, index) => (
         <video
@@ -262,116 +315,83 @@ function LumoraHero() {
       ))}
 
       {/* Content Layer (z-index 2) */}
-      <div className="absolute inset-0 z-[2] flex flex-col pt-6 pb-6 px-6 sm:px-12">
+      <div className="relative z-[2] flex-1 flex flex-col pt-4 pb-4 px-4 sm:pt-6 sm:pb-6 sm:px-12">
         {/* Navigation */}
-        <nav className="flex justify-between items-center w-full z-10">
-          <div className="font-display italic text-white text-xl sm:text-2xl">
+        <motion.nav 
+          variants={{ visible: { y: 0, opacity: 1 }, hidden: { y: -100, opacity: 0 } }}
+          animate={hidden ? "hidden" : "visible"}
+          transition={{ duration: 0.35, ease: "easeInOut" }}
+          className="fixed top-4 left-4 right-4 sm:top-6 sm:left-6 sm:right-6 lg:left-12 lg:right-12 z-50 flex flex-col md:flex-row justify-between items-center gap-3 md:gap-0"
+        >
+          <div className={`self-start md:self-auto font-display italic text-black text-xl sm:text-2xl px-6 py-2 sm:px-6 sm:py-2.5 rounded-full inline-flex items-center justify-center transition-all duration-300 ${scrolled ? 'bg-white/90 backdrop-blur-md shadow-lg shadow-black/5' : 'liquid-glass'}`}>
             Elden Web
           </div>
           
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center liquid-glass rounded-full p-1.5 pl-6 gap-6">
-            <div className="flex gap-6 text-white/90 text-sm font-medium font-sans">
-              <a href="#services" className="hover:text-white transition-colors">Services</a>
-              <a href="#portfolio" className="hover:text-white transition-colors">Portfolio</a>
-              <a href="#testimonials" className="hover:text-white transition-colors">Testimonials</a>
-            </div>
-            <button className="bg-white text-black px-5 py-2.5 rounded-full text-sm font-medium hover:bg-white/90 transition-colors font-sans">
+          {/* Nav */}
+          <div className={`flex items-center rounded-full p-1 sm:p-1.5 pl-3 sm:pl-6 gap-3 sm:gap-6 overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden w-full md:w-auto text-xs sm:text-sm font-medium font-sans transition-all duration-300 ${scrolled ? 'bg-white/90 backdrop-blur-md shadow-lg shadow-black/5 text-black' : 'liquid-glass text-white/90'}`}>
+            <a href="#services" className="hover:opacity-70 transition-colors snap-center whitespace-nowrap shrink-0">Services</a>
+            <a href="#portfolio" className="hover:opacity-70 transition-colors snap-center whitespace-nowrap shrink-0">Portfolio</a>
+            <a href="#testimonials" className="hover:opacity-70 transition-colors snap-center whitespace-nowrap shrink-0">Testimonials</a>
+            <RadialButton 
+              size="sm" 
+              baseColor={scrolled ? "bg-black" : "bg-white"}
+              glowColor="rgba(0,0,0,0.15)" 
+              className={`${scrolled ? 'text-white hover:bg-black/90' : 'text-black hover:bg-white/90'} shadow-lg font-sans snap-center shrink-0 ml-auto md:ml-2 !px-3 !py-1.5 sm:!px-6 sm:!py-2`}
+              onClick={scrollToContact}
+            >
               Get Started
-            </button>
+            </RadialButton>
           </div>
-
-          {/* Mobile Nav Toggle */}
-          <button 
-            className="md:hidden liquid-glass w-12 h-12 rounded-full flex items-center justify-center text-white relative z-50"
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            <Menu className={`absolute transition-all duration-300 ${menuOpen ? 'opacity-0 scale-75 rotate-90' : 'opacity-100 scale-100 rotate-0'}`} />
-            <X className={`absolute transition-all duration-300 ${menuOpen ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-75 -rotate-90'}`} />
-          </button>
-        </nav>
+        </motion.nav>
 
         {/* Hero Content (Centered) */}
-        <div className={`flex-1 flex flex-col justify-center items-center text-center transition-colors duration-700 ${textColor}`}>
+        <div className={`flex-1 flex flex-col justify-center items-center text-center transition-colors duration-700 ${textColor} pt-40 md:pt-24 pb-8`}>
           <ScrollBlurText as="h1" className="font-display text-4xl sm:text-5xl md:text-7xl lg:text-[5.5rem] leading-[1.1] max-w-4xl mb-6">
             Crafting Premium<br/>Digital Experiences
           </ScrollBlurText>
           
-          <ScrollBlurText as="p" delay={0.2} className={`max-w-xl text-lg sm:text-xl md:text-2xl leading-relaxed mb-10 font-display px-6 py-4 rounded-2xl backdrop-blur-sm border ${isDark ? 'bg-black/5 border-black/10 text-[#0C0C0C]' : 'bg-white/10 border-white/20 text-white shadow-lg'}`}>
-            Elden Web is a top-tier digital agency specializing in immersive, high-performance websites and modern interactive experiences that elevate your brand and drive growth.
-          </ScrollBlurText>
+          <LiquidButton className={`max-w-xl w-full h-auto mb-10 p-0 !whitespace-normal rounded-2xl [&>div.rounded-full]:rounded-2xl ${isDark ? 'text-[#0C0C0C]' : 'text-white'}`}>
+            <ScrollBlurText as="div" delay={0.2} className="text-lg sm:text-xl md:text-2xl leading-relaxed font-display px-6 py-6 text-center">
+              Elden Web is a top-tier digital agency specializing in immersive, high-performance websites and modern interactive experiences that elevate your brand and drive growth.
+            </ScrollBlurText>
+          </LiquidButton>
           
-          <div className="liquid-glass rounded-full p-1.5 flex items-center w-full max-w-[320px] sm:max-w-sm mb-12">
-            <input 
-              type="email" 
-              placeholder="Your Best Email" 
-              className={`flex-1 bg-transparent border-none outline-none px-4 text-sm font-sans transition-colors duration-700 ${textColor} ${isDark ? 'placeholder-[#182C41]' : 'placeholder-white'} placeholder:opacity-60`}
-            />
-            <button className={`px-5 py-2.5 rounded-full text-sm font-medium transition-colors duration-700 font-sans whitespace-nowrap ${bgColor} ${isDark ? 'text-white' : 'text-black'}`}>
-              Start a Project
-            </button>
-          </div>
+          <RadialButton 
+            size="lg"
+            baseColor={bgColor}
+            glowColor={isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.15)'}
+            className={`font-sans whitespace-nowrap mb-12 shadow-xl hover:scale-105 active:scale-95 ${isDark ? 'text-white hover:bg-black' : 'text-black hover:bg-white/90'}`}
+            onClick={scrollToContact}
+          >
+            Contact Us
+          </RadialButton>
           
           {/* Video Switcher */}
-          <div className="flex gap-4 sm:gap-6 flex-wrap justify-center font-sans">
-            {LUMORA_VIDEOS.map((vid, idx) => {
-              const isActive = idx === activeVideo;
-              return (
-                <button 
-                  key={idx}
-                  onClick={() => handleVideoSwitch(idx)}
-                  className={`text-xs sm:text-sm font-medium pb-1 border-b-2 transition-all duration-700 ${
-                    isActive ? 'border-current opacity-100' : 'border-transparent opacity-50 hover:opacity-80'
-                  }`}
-                >
-                  {vid.label}
-                </button>
-              );
-            })}
+          <div className="flex flex-col items-center gap-3 w-full">
+            <span className="text-[10px] sm:text-xs uppercase tracking-[0.2em] opacity-60 font-medium">Change Background</span>
+            <div className="flex gap-4 sm:gap-6 flex-nowrap overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden w-full max-w-[90vw] sm:max-w-none justify-start sm:justify-center font-sans px-4 sm:px-0">
+              {LUMORA_VIDEOS.map((vid, idx) => {
+                const isActive = idx === activeVideo;
+                return (
+                  <button 
+                    key={idx}
+                    onClick={() => handleVideoSwitch(idx)}
+                    className={`snap-center shrink-0 text-xs sm:text-sm font-medium pb-1 border-b-2 transition-all duration-700 ${
+                      isActive ? 'border-current opacity-100' : 'border-transparent opacity-50 hover:opacity-80'
+                    }`}
+                  >
+                    {vid.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
 
       </div>
 
-      {/* Mobile Menu Overlay */}
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col justify-center items-center"
-          >
-            <div className="flex flex-col items-center gap-6">
-              {["Services", "Portfolio", "Testimonials"].map((link, i) => (
-                <motion.a 
-                  key={link}
-                  href={`#${link.toLowerCase()}`}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 16 }}
-                  transition={{ duration: 0.5, delay: 0.1 + i * 0.05, ease: [0.4, 0, 0.2, 1] }}
-                  className="text-white text-3xl font-display"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {link}
-                </motion.a>
-              ))}
-              <motion.button 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.5, delay: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                className="mt-6 bg-white text-black px-8 py-3 rounded-full font-medium font-sans"
-              >
-                Get Started
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
     </section>
   );
 }
@@ -395,7 +415,7 @@ const FEATURES = [
   }
 ];
 
-function RadialFeatureCard({ feature, delay }: { feature: typeof FEATURES[0], delay: number }) {
+function RadialFeatureCard({ feature, delay }: { feature: typeof FEATURES[0], delay: number, key?: string | number }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [isActive, setIsActive] = useState(false);
@@ -506,52 +526,45 @@ const STICKY_PROJECTS = [
   {
     id: "01",
     category: "Client",
-    title: "Nextlevel Studio",
-    img1: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055344_5eff02e0-87a5-41ce-b64f-eb08da8f33db.png&w=1280&q=85",
-    img2: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055431_11d841fd-8b41-46a5-82e4-b04f2407a7d8.png&w=1280&q=85",
-    img3: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055451_e317bf2d-28d4-48cc-86b0-6f72f25b6327.png&w=1280&q=85"
+    title: "TouraLuxe",
+    video: "https://res.cloudinary.com/ijqlhvsd/video/upload/v1786685270/Tourawebsite.mp4",
+    liveLink: "https://touraluxe.vercel.app/"
   },
   {
     id: "02",
     category: "Personal",
-    title: "Aura Brand Identity",
-    img1: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055654_911201c5-36d9-4bc6-bac7-331adfce159f.png&w=1280&q=85",
-    img2: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055723_5ceda0b8-d9c2-4665-b2e3-83ba19ba76d1.png&w=1280&q=85",
-    img3: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055753_adc5dcbd-a8e6-49c0-b43a-9b030d835cea.png&w=1280&q=85"
+    title: "Drip",
+    video: "https://res.cloudinary.com/dxymukm5q/video/upload/q_auto/f_auto/v1779933951/Sequence_01_1_uopnzw.mp4"
   },
   {
     id: "03",
     category: "Client",
-    title: "Solaris Digital",
-    img1: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055759_963cfb0b-4bd1-4b0f-9d0a-09bd6cf95b2f.png&w=1280&q=85",
-    img2: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_060108_438f781a-9846-4dcc-89ab-c4e6cb830f5b.png&w=1280&q=85",
-    img3: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055818_9d062121-ad7e-46b9-999a-1a6a692ef1ee.png&w=1280&q=85"
+    title: "Solis Studio",
+    video: "https://res.cloudinary.com/dxymukm5q/video/upload/q_auto/f_auto/v1779940084/Sequence_01_oa2owg.mp4"
   }
 ];
 
+const scrollToContact = (e: React.MouseEvent) => {
+  e.preventDefault();
+  const el = document.getElementById('contact');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth' });
+  }
+};
+
 const ContactButton = () => (
-  <button
-    className="rounded-full text-white font-medium uppercase tracking-widest px-8 py-3 sm:px-10 sm:py-3.5 md:px-12 md:py-4 text-xs sm:text-sm md:text-base transition-transform hover:scale-105 active:scale-95"
-    style={{
-      background: 'linear-gradient(123deg, #18011F 7%, #B600A8 37%, #7621B0 72%, #BE4C00 100%)',
-      boxShadow: '0px 4px 4px rgba(181, 1, 167, 0.25), inset 4px 4px 12px #7721B1',
-      outline: '2px solid white',
-      outlineOffset: '-3px'
-    }}
+  <StarflowButton
+    onClick={scrollToContact}
+    className="uppercase tracking-widest text-xs sm:text-sm md:text-base hover:scale-105 bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.1)]"
   >
-    Contact Me
-  </button>
+    Contact Us
+  </StarflowButton>
 );
 
-const StickyProjectCard = ({ project, index, progress, totalCards }: any) => {
-  const targetScale = 1 - (totalCards - 1 - index) * 0.03;
-  const range = [index * (1 / totalCards), 1];
-  const scale = useTransform(progress, range, [1, targetScale]);
-
+const StickyProjectCard = ({ project, index }: any) => {
   return (
-    <div className="sticky h-[85vh] w-full top-24 md:top-32" style={{ top: `calc(6rem + ${index * 28}px)` }}>
-      <motion.div 
-        style={{ scale }} 
+    <div className={`sticky h-[85vh] w-full top-24 md:top-32 ${index === STICKY_PROJECTS.length - 1 ? 'mb-0' : 'mb-[40vh]'}`} style={{ top: `calc(6rem + ${index * 28}px)` }}>
+      <div 
         className="w-full h-full bg-[#0C0C0C] border-2 border-[#D7E2EA] rounded-[40px] sm:rounded-[50px] md:rounded-[60px] p-4 sm:p-6 md:p-8 flex flex-col gap-6 transform-origin-top shadow-2xl"
       >
         {/* Top Row */}
@@ -563,38 +576,31 @@ const StickyProjectCard = ({ project, index, progress, totalCards }: any) => {
               <h3 className="text-2xl md:text-4xl font-display font-medium text-white leading-none">{project.title}</h3>
             </div>
           </div>
-          <button className="rounded-full border-2 border-[#D7E2EA] px-6 py-2 uppercase tracking-widest text-xs md:text-sm font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap">
-            Live Project
-          </button>
+          {project.liveLink && (
+            <a 
+              href={project.liveLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors whitespace-nowrap self-end sm:self-auto border border-white/20"
+            >
+              Live Project
+              <ExternalLink size={16} />
+            </a>
+          )}
         </div>
 
-        {/* Bottom Row - Image Grid */}
-        <div className="flex flex-col sm:flex-row gap-4 flex-1 min-h-0 overflow-hidden">
-          {/* Left Column (40%) */}
-          <div className="flex flex-col gap-4 w-full sm:w-[40%] h-full">
-            <img 
-              src={project.img1} 
-              alt="" 
-              className="w-full object-cover rounded-[40px] sm:rounded-[50px] md:rounded-[60px] shrink-0" 
-              style={{ height: 'clamp(130px, 16vw, 230px)' }} 
-            />
-            <img 
-              src={project.img2} 
-              alt="" 
-              className="w-full object-cover rounded-[40px] sm:rounded-[50px] md:rounded-[60px] flex-1 min-h-0" 
-              style={{ height: 'clamp(160px, 22vw, 340px)' }} 
-            />
-          </div>
-          {/* Right Column (60%) */}
-          <div className="w-full sm:w-[60%] h-full">
-            <img 
-              src={project.img3} 
-              alt="" 
-              className="w-full h-full object-cover rounded-[40px] sm:rounded-[50px] md:rounded-[60px]" 
-            />
-          </div>
+        {/* Bottom Row - Video */}
+        <div className="flex-1 min-h-0 w-full overflow-hidden rounded-[30px] sm:rounded-[40px] md:rounded-[50px]">
+          <video 
+            src={project.video} 
+            autoPlay 
+            muted 
+            loop 
+            playsInline
+            className="w-full h-full object-cover"
+          />
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };
@@ -609,23 +615,19 @@ function Portfolio() {
   return (
     <section id="portfolio" ref={containerRef} className="bg-[#0C0C0C] rounded-t-[40px] sm:rounded-t-[50px] md:rounded-t-[60px] -mt-10 sm:-mt-12 md:-mt-14 z-10 relative pt-24 pb-32 px-6 text-white">
       <div className="max-w-7xl mx-auto flex flex-col items-center">
-        <div className="relative mb-16 w-full max-w-2xl h-[200px] flex items-center justify-center overflow-hidden rounded-[40px]">
-          <div className="absolute inset-0 pointer-events-auto">
-            <FluidImage />
-          </div>
-          <ScrollBlurText as="h2" className="text-4xl md:text-6xl font-display font-normal uppercase tracking-tight text-center text-white relative z-10 pointer-events-none drop-shadow-2xl">
-            Project
+        <div className="mb-16 flex items-center justify-center">
+          <ScrollBlurText as="h2" className="text-4xl md:text-6xl font-display font-normal uppercase tracking-tight text-center text-white flex items-center gap-3">
+            <span className="opacity-50">Our</span>
+            <TextRotator words={["Portfolio", "Work", "Showcase", "Projects"]} />
           </ScrollBlurText>
         </div>
         
-        <div className="w-full flex flex-col relative pb-[15vh]">
+        <div className="w-full flex flex-col relative pb-0">
           {STICKY_PROJECTS.map((project, idx) => (
             <StickyProjectCard 
               key={project.id} 
               project={project} 
               index={idx} 
-              progress={scrollYProgress} 
-              totalCards={STICKY_PROJECTS.length} 
             />
           ))}
         </div>
@@ -648,6 +650,41 @@ function Footer() {
   return (
     <footer id="contact" className="relative z-10 pt-24 pb-8 px-6 border-t border-white/10 overflow-hidden bg-[#0C0C0C] text-white">
       <div className="max-w-7xl mx-auto relative z-10">
+        
+        {/* Contact Us Form / Section */}
+        <div className="flex flex-col items-center text-center mb-32">
+          <h2 className="text-5xl md:text-6xl font-display font-bold uppercase tracking-wide mb-6">Contact Us</h2>
+          <p className="text-zinc-300 max-w-2xl text-lg font-sans">
+            Ready to start your next project? Let's talk about how we can help you achieve your goals.
+          </p>
+          
+          <div className="grid grid-cols-2 gap-3 md:gap-6 mt-16 w-full max-w-4xl mx-auto">
+            {/* Email Card */}
+            <div className="flex flex-col items-center justify-center p-6 sm:p-12 rounded-[20px] sm:rounded-[30px] border border-white/5 bg-[#111111] shadow-2xl text-center">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#1A1A1A] flex items-center justify-center mb-4 sm:mb-6">
+                <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+              <h3 className="text-sm sm:text-lg font-bold uppercase tracking-widest mb-2 sm:mb-4">Email Us</h3>
+              <p className="text-zinc-300 text-[10px] sm:text-base mb-6 sm:mb-8 font-sans break-all w-full max-w-full">eldenweb.sites@gmail.com</p>
+              <a href="mailto:eldenweb.sites@gmail.com" className="px-4 py-2 sm:px-8 sm:py-3 rounded-full border border-white/10 text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors whitespace-nowrap">
+                Send Email
+              </a>
+            </div>
+
+            {/* Phone Card */}
+            <div className="flex flex-col items-center justify-center p-6 sm:p-12 rounded-[20px] sm:rounded-[30px] border border-white/5 bg-[#111111] shadow-2xl text-center">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#1A1A1A] flex items-center justify-center mb-4 sm:mb-6">
+                <Phone className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+              <h3 className="text-sm sm:text-lg font-bold uppercase tracking-widest mb-2 sm:mb-4">Call Us</h3>
+              <p className="text-zinc-300 text-xs sm:text-base mb-6 sm:mb-8 font-sans">+91 8147486632</p>
+              <a href="tel:+918147486632" className="px-4 py-2 sm:px-8 sm:py-3 rounded-full border border-white/10 text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors whitespace-nowrap">
+                Call Now
+              </a>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
           <div className="lg:col-span-2">
             <a href="#" className="text-3xl font-display tracking-tight flex items-center gap-2 mb-6">
@@ -657,7 +694,7 @@ function Footer() {
               Elden Web
             </a>
             <ScrollBlurText as="p" className="text-zinc-400 max-w-sm text-lg leading-relaxed mb-8">
-              A premium, award-winning web design agency delivering high-performance, colorful, and modern digital solutions.
+              Elden makes the best websites and boosts your business presence online.
             </ScrollBlurText>
             <a href="mailto:hello@eldenweb.com" className="inline-flex items-center gap-2 text-xl font-bold hover:text-purple-400 transition-colors">
               hello@eldenweb.com <ArrowRight size={20} />

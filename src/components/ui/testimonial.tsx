@@ -1,8 +1,38 @@
 import { TimelineContent } from "./timeline-animation";
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
+import { Star } from "lucide-react";
+
 
 function ClientFeedback() {
     const testimonialRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [isPaused, setIsPaused] = useState(false);
+
+    useEffect(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      let animationFrameId: number;
+      
+      const scroll = () => {
+        // Only scroll on mobile (when it has overflow and lg breakpoint is not active)
+        if (!isPaused && window.innerWidth < 1024) {
+          if (container.scrollWidth > container.clientWidth) {
+            container.scrollLeft += 0.5;
+            // loop back
+            if (container.scrollLeft >= container.scrollWidth - container.clientWidth - 1) {
+              container.scrollLeft = 0;
+            }
+          }
+        }
+        animationFrameId = requestAnimationFrame(scroll);
+      };
+
+      animationFrameId = requestAnimationFrame(scroll);
+
+      return () => cancelAnimationFrame(animationFrameId);
+    }, [isPaused]);
+
   
     const revealVariants = {
       visible: (i: number) => ({
@@ -29,59 +59,49 @@ function ClientFeedback() {
             Trusted by Startups and the worlds's largest companies
           </TimelineContent>
           <TimelineContent as="p" className={"mx-auto text-gray-500"} animationNum={1} customVariants={revealVariants} timelineRef={testimonialRef}>
-            Let's hear how hypershpere client's feels about our service
+            Let's hear how Elden Web client's feels about our service
           </TimelineContent>
         </article>
-        <div className="lg:grid lg:grid-cols-3 gap-2 flex flex-col w-full lg:py-10 pt-10 pb-4 lg:px-10 px-4">
-          <div className="md:flex lg:flex-col lg:space-y-2 h-full lg:gap-0 gap-2 ">
-            <TimelineContent animationNum={0} customVariants={revealVariants} timelineRef={testimonialRef} className="lg:flex-[7] flex-[6] flex flex-col justify-between relative bg-zinc-100 overflow-hidden rounded-lg border border-gray-200 p-5">
+        <div ref={scrollContainerRef} onClick={() => setIsPaused(!isPaused)} className="lg:grid lg:grid-cols-3 gap-4 grid grid-rows-2 grid-flow-col auto-cols-[85vw] sm:auto-cols-[300px] overflow-x-auto lg:overflow-visible lg:grid-flow-row lg:grid-rows-none lg:auto-cols-auto w-full lg:py-10 pt-10 pb-8 lg:px-10 px-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="contents lg:flex lg:flex-col lg:space-y-2 h-full lg:gap-0">
+            <TimelineContent animationNum={0} customVariants={revealVariants} timelineRef={testimonialRef} className="lg:flex-[7] flex-[6] flex flex-col justify-between relative bg-zinc-100 w-full lg:w-auto overflow-hidden rounded-lg border border-gray-200 p-5">
               <div className="absolute bottom-0 left-0 right-0 top-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:50px_56px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
               <article className="mt-auto relative z-10">
                 <p>
-                  "Hypersphere has been a game-changer for us. Their service is
+                  "Elden Web has been a game-changer for us. Their service is
                   top-notch and their team is incredibly responsive."
                 </p>
                 <div className="flex justify-between pt-5">
                   <div>
-                    <h2 className="font-semibold lg:text-xl text-sm">
-                      Guillermo Rauch
-                    </h2>
-                    <p className="">CEO of Enigma</p>
+                    <div className="flex gap-1 mt-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                      ))}
+                    </div>
                   </div>
-                  <img
-                    src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=687&auto=format&fit=crop"
-                    alt="logo"
-                    width={200}
-                    height={200}
-                    className="w-16 h-16 rounded-xl object-cover"
-                  />
                 </div>
               </article>
             </TimelineContent>
-            <TimelineContent animationNum={1} customVariants={revealVariants} timelineRef={testimonialRef} className="lg:flex-[3] flex-[4] lg:h-fit lg:shrink-0 flex flex-col justify-between relative bg-blue-600 text-white overflow-hidden rounded-lg border border-gray-200 p-5">
+            <TimelineContent animationNum={1} customVariants={revealVariants} timelineRef={testimonialRef} className="lg:flex-[3] flex-[4] lg:h-fit lg:shrink-0 flex flex-col justify-between relative bg-blue-600 text-white w-full lg:w-auto overflow-hidden rounded-lg border border-gray-200 p-5">
               <article className="mt-auto">
                 <p>
-                  "We've seen incredible results with Hypersphere. Their
+                  "We've seen incredible results with Elden Web. Their
                   expertise, dedication."
                 </p>
                 <div className="flex justify-between pt-5">
                   <div>
-                    <h2 className="font-semibold text-xl">Rika Shinoda</h2>
-                    <p className="">CEO of Kintsugi</p>
+                    <div className="flex gap-1 mt-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                      ))}
+                    </div>
                   </div>
-                  <img
-                    src="https://images.unsplash.com/photo-1512485694743-9c9538b4e6e0?q=80&w=687&auto=format&fit=crop"
-                    alt="logo"
-                    width={200}
-                    height={200}
-                    className="w-16 h-16 rounded-xl object-cover"
-                  />
                 </div>
               </article>
             </TimelineContent>
           </div>
-          <div className="lg:h-full md:flex lg:flex-col h-fit lg:space-y-2 lg:gap-0 gap-2">
-            <TimelineContent animationNum={2} customVariants={revealVariants} timelineRef={testimonialRef} className="flex flex-col justify-between relative bg-[#111111] text-white overflow-hidden rounded-lg border border-gray-200 p-5">
+          <div className="contents lg:flex lg:flex-col lg:space-y-2 lg:gap-0">
+            <TimelineContent animationNum={2} customVariants={revealVariants} timelineRef={testimonialRef} className="flex flex-col justify-between relative bg-[#111111] text-white w-full lg:w-auto overflow-hidden rounded-lg border border-gray-200 p-5">
               <article className="mt-auto">
                 <p className="2xl:text-base text-sm">
                   "Their team is highly professional, and their innovative
@@ -89,43 +109,33 @@ function ClientFeedback() {
                 </p>
                 <div className="flex justify-between items-end pt-5">
                   <div>
-                    <h2 className="font-semibold lg:text-xl text-lg">
-                      Reacher{" "}
-                    </h2>
-                    <p className="lg:text-base text-sm">CEO of OdeaoLabs</p>
+                    <div className="flex gap-1 mt-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                      ))}
+                    </div>
                   </div>
-                  <img
-                    src="https://images.unsplash.com/photo-1566753323558-f4e0952af115?q=80&w=1021&auto=format&fit=crop"
-                    alt="logo"
-                    width={200}
-                    height={200}
-                    className="lg:w-16 lg:h-16 w-12 h-12 rounded-xl object-cover"
-                  />
                 </div>
               </article>
             </TimelineContent>
-            <TimelineContent animationNum={3} customVariants={revealVariants} timelineRef={testimonialRef} className="flex flex-col justify-between relative bg-[#111111] text-white overflow-hidden rounded-lg border border-gray-200 p-5">
+            <TimelineContent animationNum={3} customVariants={revealVariants} timelineRef={testimonialRef} className="flex flex-col justify-between relative bg-[#111111] text-white w-full lg:w-auto overflow-hidden rounded-lg border border-gray-200 p-5">
               <article className="mt-auto">
                 <p className="2xl:text-base text-sm">
-                  "We're extremely satisfied with Hypersphere. Their expertise
+                  "We're extremely satisfied with Elden Web. Their expertise
                   and dedication have exceeded our expectations."
                 </p>
                 <div className="flex justify-between items-end pt-5">
                   <div>
-                    <h2 className="font-semibold lg:text-xl text-lg">John </h2>
-                    <p className="lg:text-base text-sm">CEO of Labsbo</p>
+                    <div className="flex gap-1 mt-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                      ))}
+                    </div>
                   </div>
-                  <img
-                    src="https://images.unsplash.com/photo-1615109398623-88346a601842?q=80&w=687&auto=format&fit=crop"
-                    alt="logo"
-                    width={200}
-                    height={200}
-                    className="lg:w-16 lg:h-16 w-12 h-12 rounded-xl object-cover"
-                  />
                 </div>
               </article>
             </TimelineContent>
-            <TimelineContent animationNum={4} customVariants={revealVariants} timelineRef={testimonialRef} className="flex flex-col justify-between relative bg-[#111111] text-white overflow-hidden rounded-lg border border-gray-200 p-5">
+            <TimelineContent animationNum={4} customVariants={revealVariants} timelineRef={testimonialRef} className="flex flex-col justify-between relative bg-[#111111] text-white w-full lg:w-auto overflow-hidden rounded-lg border border-gray-200 p-5">
               <article className="mt-auto">
                 <p className="2xl:text-base text-sm">
                   "Their customer support is absolutely exceptional. They are
@@ -133,64 +143,50 @@ function ClientFeedback() {
                 </p>
                 <div className="flex justify-between items-end pt-5">
                   <div>
-                    <h2 className="font-semibold lg:text-xl text-lg">
-                      Steven Sunny
-                    </h2>
-                    <p className="lg:text-base text-sm">CEO of boxefi</p>
+                    <div className="flex gap-1 mt-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                      ))}
+                    </div>
                   </div>
-                  <img
-                    src="https://images.unsplash.com/photo-1740102074295-c13fae3e4f8a?q=80&w=687&auto=format&fit=crop"
-                    alt="logo"
-                    width={200}
-                    height={200}
-                    className="lg:w-16 lg:h-16 w-12 h-12 rounded-xl object-cover"
-                  />
                 </div>
               </article>
             </TimelineContent>
           </div>
-          <div className="h-full md:flex lg:flex-col lg:space-y-2 lg:gap-0 gap-2">
-            <TimelineContent animationNum={5} customVariants={revealVariants} timelineRef={testimonialRef} className="lg:flex-[3] flex-[4] flex flex-col justify-between relative bg-blue-600 text-white overflow-hidden rounded-lg border border-gray-200 p-5">
+          <div className="contents lg:flex lg:flex-col lg:space-y-2 lg:gap-0">
+            <TimelineContent animationNum={5} customVariants={revealVariants} timelineRef={testimonialRef} className="lg:flex-[3] flex-[4] flex flex-col justify-between relative bg-blue-600 text-white w-full lg:w-auto overflow-hidden rounded-lg border border-gray-200 p-5">
               <article className="mt-auto">
                 <p>
-                  "Hypersphere has been a key partner in our growth journey."
+                  "Elden Web has been a key partner in our growth journey."
                 </p>
                 <div className="flex justify-between pt-5">
                   <div>
-                    <h2 className="font-semibold text-xl">Guillermo Rauch</h2>
-                    <p className="">CEO of OdeaoLabs</p>
+                    <div className="flex gap-1 mt-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                      ))}
+                    </div>
                   </div>
-                  <img
-                    src="https://images.unsplash.com/photo-1563237023-b1e970526dcb?q=80&w=765&auto=format&fit=crop"
-                    alt="logo"
-                    width={200}
-                    height={200}
-                    className="w-16 h-16 rounded-xl object-cover"
-                  />
                 </div>
               </article>
             </TimelineContent>
-            <TimelineContent animationNum={6} customVariants={revealVariants} timelineRef={testimonialRef} className="lg:flex-[7] flex-[6] flex flex-col justify-between relative bg-zinc-100 overflow-hidden rounded-lg border border-gray-200 p-5">
+            <TimelineContent animationNum={6} customVariants={revealVariants} timelineRef={testimonialRef} className="lg:flex-[7] flex-[6] flex flex-col justify-between relative bg-zinc-100 w-full lg:w-auto overflow-hidden rounded-lg border border-gray-200 p-5">
               <div className="absolute bottom-0 left-0 right-0 top-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:50px_56px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
               <article className="mt-auto relative z-10">
                 <p>
-                  "Hypersphere has been a true game-changer for us. Their
+                  "Elden Web has been a true game-changer for us. Their
                   exceptional service, combined with their deep expertise and
                   commitment to excellence, has made a significant impact on our
                   business."
                 </p>
                 <div className="flex justify-between pt-5">
                   <div>
-                    <h2 className="font-semibold text-xl">Paul Brauch</h2>
-                    <p className="">CTO of Spectrum</p>
+                    <div className="flex gap-1 mt-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                      ))}
+                    </div>
                   </div>
-                  <img
-                    src="https://images.unsplash.com/photo-1590086782957-93c06ef21604?q=80&w=687&auto=format&fit=crop"
-                    alt="logo"
-                    width={200}
-                    height={200}
-                    className="w-16 h-16 rounded-xl object-cover"
-                  />
                 </div>
               </article>
             </TimelineContent>

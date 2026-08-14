@@ -1,8 +1,6 @@
 {
   "name": "Elden Web",
-  "description": "Award-winning portfolio website for Elden Web, a premium web design and development agency.",
+  "description": "A premium, award-winning web design agency delivering high-performance, colorful, and modern digital solutions.",
   "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
